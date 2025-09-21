@@ -1,0 +1,1115 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 增強型 PLC 模擬器</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+            --border-color: #dee2e6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 400px;
+            grid-template-rows: 60px 1fr;
+            grid-template-areas: 
+                "sidebar header chat"
+                "sidebar main chat";
+            height: 100vh;
+            background: white;
+        }
+
+        /* 頂部標題欄 */
+        .app-header {
+            grid-area: header;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn.run {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .control-btn.stop {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        /* 左側邊欄 */
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--light-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--primary-color);
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .component-item {
+            padding: 10px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            text-align: center;
+            cursor: grab;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .component-item:hover {
+            border-color: var(--secondary-color);
+            background: #e3f2fd;
+        }
+
+        .example-item {
+            padding: 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .example-item:hover {
+            border-color: var(--secondary-color);
+            background: #e3f2fd;
+        }
+
+        /* 主編輯區 */
+        .main-editor {
+            grid-area: main;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            background: var(--light-bg);
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .ladder-canvas {
+            flex: 1;
+            background: #fafbfc;
+            overflow: auto;
+            position: relative;
+        }
+
+        .ladder-grid {
+            background-image: 
+                linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+                linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+            background-size: 30px 30px;
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+        }
+
+        /* 梯形圖元件 */
+        .ladder-rung {
+            position: relative;
+            height: 80px;
+            margin: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .rung-number {
+            position: absolute;
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: bold;
+            color: var(--secondary-color);
+            font-size: 12px;
+        }
+
+        .plc-contact {
+            width: 50px;
+            height: 35px;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 0 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .plc-contact.active {
+            background: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        .plc-contact.nc::before {
+            content: '/';
+            position: absolute;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .plc-coil {
+            width: 50px;
+            height: 35px;
+            border: 3px solid var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .plc-coil.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .wire {
+            height: 3px;
+            background: #333;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .wire.active {
+            background: var(--success-color);
+            box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+        }
+
+        /* AI 聊天面板 */
+        .chat-panel {
+            grid-area: chat;
+            background: white;
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: var(--secondary-color);
+            color: white;
+            padding: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.user {
+            background: var(--secondary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+        }
+
+        .message.assistant {
+            background: var(--light-bg);
+            border: 1px solid var(--border-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-input-area {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            background: var(--light-bg);
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message-input {
+            resize: none;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 12px 18px;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .message-input:focus {
+            border-color: var(--secondary-color);
+        }
+
+        .input-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-upload {
+            display: flex;
+            gap: 8px;
+        }
+
+        .upload-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: var(--light-bg);
+        }
+
+        .send-btn {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: #2980b9;
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* I/O 狀態面板 */
+        .io-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .io-section {
+            margin-bottom: 15px;
+        }
+
+        .io-section h4 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-size: 14px;
+        }
+
+        .io-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .io-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            background: var(--light-bg);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .io-led {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .io-led.active {
+            background: var(--success-color);
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.6);
+        }
+
+        .io-led.input {
+            background: #007bff;
+        }
+
+        .io-led.input.active {
+            background: #0056b3;
+            box-shadow: 0 0 12px rgba(0, 123, 255, 0.6);
+        }
+
+        /* 狀態指示器 */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 300px;
+            right: 400px;
+            height: 30px;
+            background: var(--dark-bg);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 250px 1fr 350px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "header"
+                    "main";
+            }
+            
+            .sidebar, .chat-panel {
+                display: none;
+            }
+            
+            .status-bar {
+                left: 0;
+                right: 0;
+            }
+        }
+
+        /* 動畫效果 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark-bg);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        /* 拖拽樣式 */
+        .drag-over {
+            border: 2px dashed var(--secondary-color) !important;
+            background: rgba(52, 152, 219, 0.1) !important;
+        }
+
+        .dragging {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部標題欄 -->
+        <header class="app-header">
+            <div class="app-title">
+                <i class="fas fa-cogs"></i>
+                AI 增強型 PLC 模擬器
+            </div>
+            <div class="app-controls">
+                <button class="control-btn run" id="runBtn">
+                    <i class="fas fa-play"></i> 運行
+                </button>
+                <button class="control-btn stop" id="stopBtn">
+                    <i class="fas fa-stop"></i> 停止
+                </button>
+                <button class="control-btn" id="resetBtn">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+        </header>
+
+        <!-- 左側邊欄 -->
+        <aside class="sidebar">
+            <!-- PLC 元件庫 -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">PLC 元件</div>
+                <div class="component-grid">
+                    <div class="component-item" draggable="true" data-type="contact-no">
+                        <i class="fas fa-square"></i><br>常開觸點
+                    </div>
+                    <div class="component-item" draggable="true" data-type="contact-nc">
+                        <i class="fas fa-slash"></i><br>常閉觸點
+                    </div>
+                    <div class="component-item" draggable="true" data-type="coil">
+                        <i class="fas fa-circle"></i><br>線圈輸出
+                    </div>
+                    <div class="component-item" draggable="true" data-type="timer">
+                        <i class="fas fa-clock"></i><br>計時器
+                    </div>
+                    <div class="component-item" draggable="true" data-type="counter">
+                        <i class="fas fa-sort-numeric-up"></i><br>計數器
+                    </div>
+                    <div class="component-item" draggable="true" data-type="compare">
+                        <i class="fas fa-equals"></i><br>比較指令
+                    </div>
+                </div>
+            </div>
+
+            <!-- 範例程式庫 -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">範例程式</div>
+                <div class="example-item" data-example="start-stop">
+                    <i class="fas fa-power-off"></i> 啟動停止控制
+                </div>
+                <div class="example-item" data-example="blink">
+                    <i class="fas fa-lightbulb"></i> 閃爍電路
+                </div>
+                <div class="example-item" data-example="traffic">
+                    <i class="fas fa-traffic-light"></i> 交通燈控制
+                </div>
+                <div class="example-item" data-example="conveyor">
+                    <i class="fas fa-truck-loading"></i> 輸送帶控制
+                </div>
+                <div class="example-item" data-example="elevator">
+                    <i class="fas fa-elevator"></i> 電梯系統
+                </div>
+            </div>
+
+            <!-- I/O 狀態 -->
+            <div class="io-panel">
+                <div class="io-section">
+                    <h4><i class="fas fa-sign-in-alt"></i> 輸入狀態</h4>
+                    <div class="io-grid">
+                        <div class="io-item">
+                            <div class="io-led input" data-address="I0.0"></div>
+                            <span>I0.0</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led input" data-address="I0.1"></div>
+                            <span>I0.1</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led input" data-address="I0.2"></div>
+                            <span>I0.2</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led input" data-address="I0.3"></div>
+                            <span>I0.3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="io-section">
+                    <h4><i class="fas fa-sign-out-alt"></i> 輸出狀態</h4>
+                    <div class="io-grid">
+                        <div class="io-item">
+                            <div class="io-led" data-address="Q0.0"></div>
+                            <span>Q0.0</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led" data-address="Q0.1"></div>
+                            <span>Q0.1</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led" data-address="Q0.2"></div>
+                            <span>Q0.2</span>
+                        </div>
+                        <div class="io-item">
+                            <div class="io-led" data-address="Q0.3"></div>
+                            <span>Q0.3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主編輯區 -->
+        <main class="main-editor">
+            <div class="editor-toolbar">
+                <button class="control-btn" id="newBtn">
+                    <i class="fas fa-file"></i> 新建
+                </button>
+                <button class="control-btn" id="saveBtn">
+                    <i class="fas fa-save"></i> 儲存
+                </button>
+                <button class="control-btn" id="loadBtn">
+                    <i class="fas fa-folder-open"></i> 載入
+                </button>
+                <div style="margin-left: auto;">
+                    <span>掃描週期: <strong id="scanTime">0ms</strong></span>
+                </div>
+            </div>
+            
+            <div class="ladder-canvas" id="ladderCanvas">
+                <div class="ladder-grid">
+                    <!-- 預設梯形圖範例 -->
+                    <div class="ladder-rung">
+                        <div class="rung-number">0000</div>
+                        <div class="plc-contact tooltip" data-address="I0.0" data-tooltip="啟動按鈕">I0.0</div>
+                        <div class="wire"></div>
+                        <div class="plc-contact nc tooltip" data-address="I0.1" data-tooltip="停止按鈕">I0.1</div>
+                        <div class="wire"></div>
+                        <div class="plc-coil tooltip" data-address="Q0.0" data-tooltip="馬達輸出">Q0.0</div>
+                    </div>
+
+                    <div class="ladder-rung">
+                        <div class="rung-number">0001</div>
+                        <div class="plc-contact tooltip" data-address="Q0.0" data-tooltip="馬達輔助接點">Q0.0</div>
+                        <div class="wire"></div>
+                        <div class="plc-contact tooltip" data-address="I0.2" data-tooltip="手動模式">I0.2</div>
+                        <div class="wire"></div>
+                        <div class="plc-coil tooltip" data-address="Q0.1" data-tooltip="指示燈">Q0.1</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- AI 聊天面板 -->
+        <aside class="chat-panel">
+            <div class="chat-header">
+                <i class="fas fa-robot"></i>
+                AI 程式助手
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant fade-in">
+                    你好！我是 AI 程式助手。我可以幫你：<br>
+                    • 生成 PLC 梯形圖程式<br>
+                    • 解釋程式邏輯<br>
+                    • 除錯和優化<br>
+                    • 回答技術問題<br><br>
+                    請告訴我你想要實現什麼功能？
+                </div>
+            </div>
+
+            <div class="message-input-area">
+                <div class="input-container">
+                    <textarea 
+                        class="message-input" 
+                        id="messageInput" 
+                        placeholder="輸入你的問題或描述想要的功能..."
+                        rows="3"
+                    ></textarea>
+                    
+                    <div class="input-tools">
+                        <div class="file-upload">
+                            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                            <input type="file" id="docUpload" accept=".txt,.pdf,.doc,.docx" style="display: none;">
+                            <button class="upload-btn tooltip" data-tooltip="上傳圖片" onclick="document.getElementById('imageUpload').click()">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            <button class="upload-btn tooltip" data-tooltip="上傳文件" onclick="document.getElementById('docUpload').click()">
+                                <i class="fas fa-file"></i>
+                            </button>
+                        </div>
+                        
+                        <button class="send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 狀態欄 -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot pulse"></div>
+                <span id="statusText">系統就緒</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-link"></i>
+                <span>已連接</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span id="currentTime"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全域變數
+        let plcRunning = false;
+        let ioStates = {
+            inputs: {'I0.0': false, 'I0.1': false, 'I0.2': false, 'I0.3': false},
+            outputs: {'Q0.0': false, 'Q0.1': false, 'Q0.2': false, 'Q0.3': false}
+        };
+        let scanInterval;
+
+        // PLC 模擬器類別
+        class PLCSimulator {
+            constructor() {
+                this.initializeEventListeners();
+                this.initializeDragAndDrop();
+                this.initializeChatSystem();
+                this.updateTime();
+                setInterval(() => this.updateTime(), 1000);
+            }
+
+            initializeEventListeners() {
+                // 控制按鈕
+                document.getElementById('runBtn').addEventListener('click', () => this.run());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stop());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+
+                // I/O 控制
+                document.querySelectorAll('.io-led.input').forEach(led => {
+                    led.addEventListener('click', (e) => {
+                        const address = e.target.dataset.address;
+                        ioStates.inputs[address] = !ioStates.inputs[address];
+                        this.updateDisplay();
+                        this.logMessage(`輸入 ${address} ${ioStates.inputs[address] ? '開啟' : '關閉'}`);
+                    });
+                });
+
+                // 範例載入
+                document.querySelectorAll('.example-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const exampleType = e.currentTarget.dataset.example;
+                        this.loadExample(exampleType);
+                    });
+                });
+            }
+
+            initializeDragAndDrop() {
+                const canvas = document.getElementById('ladderCanvas');
+                
+                // 拖拽事件
+                document.querySelectorAll('.component-item').forEach(item => {
+                    item.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData('text/plain', item.dataset.type);
+                        item.classList.add('dragging');
+                    });
+                    
+                    item.addEventListener('dragend', () => {
+                        item.classList.remove('dragging');
+                    });
+                });
+
+                // 放置事件
+                canvas.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    canvas.classList.add('drag-over');
+                });
+
+                canvas.addEventListener('dragleave', () => {
+                    canvas.classList.remove('drag-over');
+                });
+
+                canvas.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    canvas.classList.remove('drag-over');
+                    const componentType = e.dataTransfer.getData('text/plain');
+                    this.addComponent(componentType, e.clientX, e.clientY);
+                });
+            }
+
+            initializeChatSystem() {
+                const sendBtn = document.getElementById('sendBtn');
+                const messageInput = document.getElementById('messageInput');
+
+                sendBtn.addEventListener('click', () => this.sendMessage());
+                
+                messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                // 文件上傳處理
+                document.getElementById('imageUpload').addEventListener('change', (e) => {
+                    this.handleFileUpload(e, 'image');
+                });
+                
+                document.getElementById('docUpload').addEventListener('change', (e) => {
+                    this.handleFileUpload(e, 'document');
+                });
+            }
+
+            run() {
+                if (!plcRunning) {
+                    plcRunning = true;
+                    document.getElementById('statusText').textContent = '運行中';
+                    
+                    scanInterval = setInterval(() => {
+                        this.executeLadderLogic();
+                        this.updateDisplay();
+                        document.getElementById('scanTime').textContent = Math.random() * 10 + 5 + 'ms';
+                    }, 100);
+                    
+                    this.logMessage('PLC 程式開始執行');
+                }
+            }
+
+            stop() {
+                if (plcRunning) {
+                    plcRunning = false;
+                    clearInterval(scanInterval);
+                    document.getElementById('statusText').textContent = '已停止';
+                    
+                    // 清除所有輸出
+                    Object.keys(ioStates.outputs).forEach(key => {
+                        ioStates.outputs[key] = false;
+                    });
+                    
+                    this.updateDisplay();
+                    this.logMessage('PLC 程式停止執行');
+                }
+            }
+
+            reset() {
+                this.stop();
+                
+                // 重置所有狀態
+                Object.keys(ioStates.inputs).forEach(key => {
+                    ioStates.inputs[key] = false;
+                });
+                Object.keys(ioStates.outputs).forEach(key => {
+                    ioStates.outputs[key] = false;
+                });
+                
+                document.getElementById('statusText').textContent = '系統就緒';
+                this.updateDisplay();
+                this.logMessage('系統已重置');
+            }
+
+            executeLadderLogic() {
+                // 梯形圖邏輯執行
+                // 第一階梯: I0.0 AND NOT I0.1 = Q0.0
+                ioStates.outputs['Q0.0'] = ioStates.inputs['I0.0'] && !ioStates.inputs['I0.1'];
+                
+                // 第二階梯: Q0.0 AND I0.2 = Q0.1
+                ioStates.outputs['Q0.1'] = ioStates.outputs['Q0.0'] && ioStates.inputs['I0.2'];
+                
+                // 額外邏輯範例
+                ioStates.outputs['Q0.2'] = ioStates.inputs['I0.3'];
+            }
+
+            updateDisplay() {
+                // 更新梯形圖元件狀態
+                document.querySelectorAll('.plc-contact').forEach(contact => {
+                    const address = contact.dataset.address;
+                    let isActive = false;
+                    
+                    if (address?.startsWith('I')) {
+                        isActive = ioStates.inputs[address];
+                    } else if (address?.startsWith('Q')) {
+                        isActive = ioStates.outputs[address];
+                    }
+                    
+                    if (contact.classList.contains('nc')) {
+                        isActive = !isActive;
+                    }
+                    
+                    contact.classList.toggle('active', isActive);
+                });
+
+                // 更新線圈狀態
+                document.querySelectorAll('.plc-coil').forEach(coil => {
+                    const address = coil.dataset.address;
+                    coil.classList.toggle('active', ioStates.outputs[address]);
+                });
+
+                // 更新連接線狀態
+                document.querySelectorAll('.wire').forEach(wire => {
+                    const rung = wire.closest('.ladder-rung');
+                    const contacts = rung.querySelectorAll('.plc-contact');
+                    let wireActive = true;
+                    
+                    contacts.forEach(contact => {
+                        if (!contact.classList.contains('active')) {
+                            wireActive = false;
+                        }
+                    });
+                    
+                    wire.classList.toggle('active', wireActive);
+                });
+
+                // 更新 I/O LED
+                document.querySelectorAll('.io-led').forEach(led => {
+                    const address = led.dataset.address;
+                    if (address?.startsWith('I')) {
+                        led.classList.toggle('active', ioStates.inputs[address]);
+                    } else if (address?.startsWith('Q')) {
+                        led.classList.toggle('active', ioStates.outputs[address]);
+                    }
+                });
+            }
+
+            addComponent(componentType, x, y) {
+                this.logMessage(`已添加 ${componentType} 元件`);
+                this.addChatMessage('assistant', `我已幫你添加了 ${componentType} 元件到梯形圖中。你可以設定它的地址和參數。`);
+            }
+
+            loadExample(exampleType) {
+                const examples = {
+                    'start-stop': '啟動停止控制邏輯已載入',
+                    'blink': '閃爍電路範例已載入',
+                    'traffic': '交通燈控制程式已載入',
+                    'conveyor': '輸送帶控制邏輯已載入',
+                    'elevator': '電梯控制系統已載入'
+                };
+                
+                this.logMessage(examples[exampleType] || '範例程式已載入');
+                this.addChatMessage('assistant', `我已為你載入了「${examples[exampleType]?.replace('已載入', '')}」範例。這個程式展示了典型的工業控制邏輯。`);
+            }
+
+            sendMessage() {
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+                
+                if (message) {
+                    this.addChatMessage('user', message);
+                    messageInput.value = '';
+                    
+                    // 模擬 AI 回應
+                    setTimeout(() => {
+                        this.processAIResponse(message);
+                    }, 1000);
+                }
+            }
+
+            processAIResponse(userMessage) {
+                const lowerMessage = userMessage.toLowerCase();
+                let response = '';
+
+                // 簡單的 AI 回應邏輯
+                if (lowerMessage.includes('馬達') || lowerMessage.includes('motor')) {
+                    response = '我可以幫你創建馬達控制程式。典型的馬達控制包括啟動、停止、正反轉等功能。你需要哪種類型的控制？';
+                } else if (lowerMessage.includes('計時器') || lowerMessage.includes('timer')) {
+                    response = '計時器是 PLC 中常用的功能。我可以幫你設置延時接通(TON)、延時斷開(TOF)或脈沖計時器(TP)。你想實現什麼樣的時序控制？';
+                } else if (lowerMessage.includes('交通燈') || lowerMessage.includes('traffic')) {
+                    response = '交通燈控制是很好的 PLC 學習專案！需要用到計時器來控制紅綠燈的切換時間。我可以為你生成基本的三色燈控制邏輯。';
+                } else if (lowerMessage.includes('程式') || lowerMessage.includes('code')) {
+                    response = '我可以根據你的需求生成 PLC 梯形圖程式。請詳細描述你想要實現的功能，包括輸入輸出點和控制邏輯。';
+                } else if (lowerMessage.includes('錯誤') || lowerMessage.includes('error')) {
+                    response = '讓我幫你檢查程式。常見的問題包括：地址衝突、邏輯錯誤、時序問題等。請描述具體的錯誤現象。';
+                } else {
+                    response = '我理解你的需求。作為 PLC 程式助手，我可以幫你設計控制邏輯、生成梯形圖、解釋程式功能，或回答任何 PLC 相關問題。請告訴我更多細節。';
+                }
+
+                this.addChatMessage('assistant', response);
+            }
+
+            addChatMessage(type, message) {
+                const chatMessages = document.getElementById('chatMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type} fade-in`;
+                messageDiv.textContent = message;
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            handleFileUpload(event, fileType) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.addChatMessage('user', `已上傳 ${fileType === 'image' ? '圖片' : '文件'}: ${file.name}`);
+                    
+                    setTimeout(() => {
+                        if (fileType === 'image') {
+                            this.addChatMessage('assistant', '我已收到你的圖片。如果這是電路圖或接線圖，我可以幫你分析並轉換成 PLC 程式。請告訴我圖片中的具體內容。');
+                        } else {
+                            this.addChatMessage('assistant', '我已收到你的文件。如果包含程式需求或技術規格，我可以據此生成相應的 PLC 程式。');
+                        }
+                    }, 1000);
+                }
+            }
+
+            logMessage(message) {
+                console.log(`[PLC LOG] ${new Date().toLocaleTimeString()}: ${message}`);
+            }
+
+            updateTime() {
+                const now = new Date();
+                document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+            }
+        }
+
+        // 初始化系統
+        document.addEventListener('DOMContentLoaded', function() {
+            const simulator = new PLCSimulator();
+            
+            // 歡迎訊息
+            setTimeout(() => {
+                simulator.addChatMessage('assistant', '歡迎使用 AI 增強型 PLC 模擬器！我可以幫你設計和測試 PLC 程式。現在就開始吧！');
+            }, 2000);
+        });
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'r':
+                        e.preventDefault();
+                        document.getElementById('runBtn').click();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        document.getElementById('stopBtn').click();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        document.getElementById('resetBtn').click();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
